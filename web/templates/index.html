@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ShareVideo — DLNA 媒体服务器</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --card-bg: #16213e;
+    --accent: #0f3460;
+    --highlight: #e94560;
+    --text: #eee;
+    --text-dim: #999;
+    --green: #4caf50;
+    --red: #f44336;
+    --border: #2a2a4a;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; padding: 24px;
+  }
+  .container { max-width: 720px; margin: 0 auto; }
+
+  /* Header */
+  .header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 32px;
+    padding: 20px 24px; background: var(--card-bg);
+    border-radius: 12px; border: 1px solid var(--border);
+  }
+  .header h1 { font-size: 22px; font-weight: 600; }
+  .status-dot {
+    width: 12px; height: 12px; border-radius: 50%; background: var(--green);
+    box-shadow: 0 0 8px var(--green); flex-shrink: 0;
+  }
+  .status-text { color: var(--green); font-size: 13px; margin-left: auto; }
+
+  /* Cards */
+  .card {
+    background: var(--card-bg); border-radius: 12px;
+    border: 1px solid var(--border); padding: 24px; margin-bottom: 20px;
+  }
+  .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--highlight); }
+
+  /* Info grid */
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .info-item { padding: 10px 14px; background: var(--bg); border-radius: 8px; }
+  .info-item .label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .info-item .value { font-size: 15px; font-weight: 500; margin-top: 2px; word-break: break-all; }
+
+  /* Folder list */
+  .folder-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; background: var(--bg); border-radius: 8px;
+    margin-bottom: 8px;
+  }
+  .folder-icon { font-size: 20px; flex-shrink: 0; }
+  .folder-info { flex: 1; min-width: 0; }
+  .folder-info .path { font-size: 13px; word-break: break-all; }
+  .folder-info .meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .btn-remove {
+    background: none; border: 1px solid var(--red); color: var(--red);
+    padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    flex-shrink: 0;
+  }
+  .btn-remove:hover { background: var(--red); color: #fff; }
+
+  /* Add folder form */
+  .add-form { display: flex; gap: 8px; margin-top: 12px; }
+  .add-form input {
+    flex: 1; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 14px; border-radius: 8px; font-size: 14px;
+  }
+  .add-form input:focus { outline: none; border-color: var(--highlight); }
+  .btn {
+    background: var(--highlight); color: #fff; border: none;
+    padding: 10px 20px; border-radius: 8px; cursor: pointer;
+    font-size: 14px; font-weight: 500; white-space: nowrap;
+  }
+  .btn:hover { opacity: 0.9; }
+  .btn-secondary {
+    background: var(--accent);
+  }
+
+  /* Banner messages */
+  .banner {
+    padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;
+    font-size: 13px; display: none;
+  }
+  .banner.error { background: #3d1f1f; color: #ff8a80; border: 1px solid #5c2828; display: block; }
+  .banner.success { background: #1f3d1f; color: #a5d6a7; border: 1px solid #285c28; display: block; }
+
+  /* Empty state */
+  .empty {
+    text-align: center; color: var(--text-dim); padding: 32px 0; font-size: 14px;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="status-dot" id="statusDot"></div>
+    <h1>ShareVideo</h1>
+    <span class="status-text">运行中</span>
+  </div>
+
+  <!-- Banner -->
+  <div class="banner" id="banner"></div>
+
+  <!-- Server Info Card -->
+  <div class="card">
+    <h2>📊 服务器状态</h2>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="label">服务器名称</div>
+        <div class="value" id="infoName">-</div>
+      </div>
+      <div class="info-item">
+        <div class="label">DLNA 端口</div>
+        <div class="value" id="infoPort">-</div>
+      </div>
+      <div class="info-item">
+        <div class="label">视频文件数</div>
+        <div class="value" id="infoFiles">-</div>
+      </div>
+      <div class="info-item">
+        <div class="label">文件夹数</div>
+        <div class="value" id="infoFolders">-</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shared Folders Card -->
+  <div class="card">
+    <h2>📁 共享文件夹</h2>
+    <div id="folderList">
+      <div class="empty">暂无共享文件夹<br>请在下方添加包含视频的文件夹</div>
+    </div>
+    <div class="add-form">
+      <input type="text" id="folderInput" placeholder="输入文件夹路径，例如 C:\Users\User\Videos">
+      <button class="btn" onclick="addFolder()">添加</button>
+    </div>
+  </div>
+
+  <!-- Actions Card -->
+  <div class="card">
+    <h2>⚙️ 操作</h2>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="doRescan()">🔄 重新扫描</button>
+      <span style="font-size:12px;color:var(--text-dim);">
+        支持格式: <span id="extList">-</span>
+      </span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ===== API Helpers =====
+async function api(url, opts = {}) {
+  try {
+    const res = await fetch(url, opts);
+    return await res.json();
+  } catch (e) {
+    showBanner("无法连接服务器: " + e.message, "error");
+    return null;
+  }
+}
+
+function showBanner(msg, type) {
+  const b = document.getElementById("banner");
+  b.textContent = msg; b.className = "banner " + type;
+  setTimeout(() => b.className = "banner", 4000);
+}
+
+// ===== Load Status =====
+async function loadStatus() {
+  const data = await api("/api/status");
+  if (!data) return;
+  document.getElementById("infoName").textContent = data.name;
+  document.getElementById("infoPort").textContent = data.port;
+  document.getElementById("infoFiles").textContent = data.file_count;
+  document.getElementById("infoFolders").textContent = data.folder_count;
+  document.getElementById("extList").textContent = (data.allowed_extensions || []).join(", ");
+}
+
+// ===== Load Folders =====
+async function loadFolders() {
+  const data = await api("/api/folders");
+  if (!data) return;
+  const list = document.getElementById("folderList");
+  if (!data.length) {
+    list.innerHTML = '<div class="empty">暂无共享文件夹<br>请在下方添加包含视频的文件夹</div>';
+    return;
+  }
+  list.innerHTML = data.map(f => `
+    <div class="folder-item">
+      <span class="folder-icon">📁</span>
+      <div class="folder-info">
+        <div class="path">${escHtml(f.path)}</div>
+        <div class="meta">${f.files} 个视频文件</div>
+      </div>
+      <button class="btn-remove" onclick="removeFolder('${escAttr(f.path)}')">移除</button>
+    </div>
+  `).join("");
+}
+
+// ===== Add Folder =====
+async function addFolder() {
+  const input = document.getElementById("folderInput");
+  const path = input.value.trim();
+  if (!path) { showBanner("请输入文件夹路径", "error"); return; }
+  const data = await api("/api/folders", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({path}),
+  });
+  if (data && data.success) {
+    input.value = "";
+    showBanner("文件夹已添加", "success");
+    loadStatus();
+    loadFolders();
+  } else if (data && data.error) {
+    showBanner(data.error, "error");
+  }
+}
+
+// ===== Remove Folder =====
+async function removeFolder(path) {
+  const data = await api("/api/folders?path=" + encodeURIComponent(path), {
+    method: "DELETE",
+  });
+  if (data && data.success) {
+    showBanner("文件夹已移除", "success");
+    loadStatus();
+    loadFolders();
+  } else if (data && data.error) {
+    showBanner(data.error, "error");
+  }
+}
+
+// ===== Rescan =====
+async function doRescan() {
+  const data = await api("/api/rescan", {method: "POST"});
+  if (data && data.success) {
+    showBanner("扫描完成: " + data.file_count + " 个文件", "success");
+    loadStatus();
+    loadFolders();
+  }
+}
+
+// ===== Helpers =====
+function escHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function escAttr(s) {
+  return s.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+// ===== Init =====
+loadStatus();
+loadFolders();
+
+// Allow Enter key in the folder input
+document.getElementById("folderInput").addEventListener("keydown", function(e) {
+  if (e.key === "Enter") addFolder();
+});
+</script>
+</body>
+</html>

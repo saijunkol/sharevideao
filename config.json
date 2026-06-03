@@ -1,0 +1,15 @@
+{
+  "uuid": "44e7e5de-abb4-4c99-a4f2-428a9bfb54fd",
+  "server_name": "ShareVideo",
+  "port": 8000,
+  "web_port": 8080,
+  "shared_folders": [],
+  "allowed_extensions": [
+    ".mp4",
+    ".mkv",
+    ".avi",
+    ".mov",
+    ".wmv",
+    ".m4v"
+  ]
+}
